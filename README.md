@@ -1,4 +1,17 @@
-<img alt="redux-offline" src="docs/logo.png" width="300"></img>
+<p>
+  <img alt="redux-offline" src="docs/logo.png" width="300"></img>
+</p>
+<p>
+  <a title='License' href="https://raw.githubusercontent.com/jevakallio/redux-offline/master/LICENSE" height="18">
+    <img src='https://img.shields.io/badge/license-MIT-blue.svg' />
+  </a>
+  <a href="https://badge.fury.io/js/redux-offline">
+    <img src="https://badge.fury.io/js/redux-offline.svg" alt="npm version" height="18">
+  </a>
+  <a href="https://travis-ci.org/jevakallio/redux-offline">
+    <img src="https://travis-ci.org/jevakallio/redux-offline.svg?branch=master" alt="travis" height="18">
+  </a>
+</p>
 
 Persistent Redux store for _Reasonaboutable_:tm: Offline-First applications, with first-class support for optimistic UI. Use with React, React Native, or as standalone state container for any web app.
 
@@ -23,26 +36,30 @@ Redux Offline is very, very new. If you find a bug, good job for being an early 
 npm install --save redux-offline
 ```
 
-##### 2. Replace [redux createStore](http://redux.js.org/docs/api/createStore.html) with createOfflineStore
+##### 2. Add the `offline` [store enhancer](http://redux.js.org/docs/Glossary.html#store-enhancer) with `compose`
 ```diff
 
 - import { applyMiddleware, createStore } from 'redux';
-+ import { applyMiddleware } from 'redux';
-+ import { createOfflineStore } from 'redux-offline';
++ import { applyMiddleware, createStore, compose } from 'redux';
++ import { offline } from 'redux-offline';
 + import offlineConfig from 'redux-offline/lib/defaults';
 
 // ...
 
-- const store = createStore(
-+ const store = createOfflineStore(
+const store = createStore(
   reducer,
   preloadedState,
-  applyMiddleware(middleware),
-+ offlineConfig  
+-  applyMiddleware(middleware)
++  compose(
++    applyMiddleware(middleware),
++    offline(offlineConfig)
++  )
 );
 ```
 
 See [Configuration](#configuration) for overriding default configurations.
+
+Looking for `createOfflineStore` from redux-offline 1.x? See migration instructions in the [2.0.0 release notes](https://github.com/jevakallio/redux-offline/releases/tag/v2.0.0).
 
 ##### 3. Decorate actions with offline metadata
 
@@ -143,7 +160,7 @@ const followingUsersReducer = (state, action) {
       return { ...state, [action.payload.userId]: true };
     case 'FOLLOW_USER_ROLLBACK':
       return omit(state, [action.payload.userId]);
-    default;
+    default:
       return state;
   }
 }
@@ -185,7 +202,7 @@ const ordersReducer = (state, action) {
         error: action.payload,
         submitting: omit(state.submitting, [action.meta.orderId])
       };
-    default;
+    default:
       return state;
   }
 }
@@ -195,7 +212,7 @@ const ordersReducer = (state, action) {
 
 The last part of the offline metadata is `meta.offline.effect`. This property can contain anything, and will be passed as-is to the effects reconciler.
 
-The **effects reconciler** is a function that you pass to `createOfflineStore` configuration, whose responsibility it is to take the effect payload, send it over the network, and return a Promise that resolves if sending was successful or rejects if the sending failed. The method is passed the full action as a second parameter:
+The **effects reconciler** is a function that you pass to offline enhancer configuration, whose responsibility it is to take the effect payload, send it over the network, and return a Promise that resolves if sending was successful or rejects if the sending failed. The method is passed the full action as a second parameter:
 
 ```js
 type EffectsReconciler = (effect: any, action: OfflineAction) => Promise<any>
@@ -287,25 +304,24 @@ export type Config = {
 };
 ```
 
-#### Passing configuration to createOfflineStore
-The `createOfflineStore` store creator takes the [configuration object](#configuration-object) as a final parameter:
+#### Passing configuration to the enhancer
+The `offline` store enhancer takes the [configuration object](#configuration-object) as a final parameter:
 ```diff
-+ import { createOfflineStore } from 'redux-offline';
++ import { offline } from 'redux-offline';
 + import defaultConfig from 'redux-offline/lib/defaults';
-+
-- const store = createStore(
-+ const store = createOfflineStore(
+
+const store = createStore(
   reducer,
   preloadedState,
-  middleware,
-+ defaultConfig  
+-  middleware
++  compose(middleware, offline(defaultConfig))
 );
 ```
 
 #### Overriding default properties
 You can override any individual property in the default configuration:
 ```diff
-import { createOfflineStore } from 'redux-offline';
+import { offline } from 'redux-offline';
 import defaultConfig from 'redux-offline/lib/defaults';
 
 const customConfig = {
@@ -313,11 +329,11 @@ const customConfig = {
   effect: (effect, _action) => Api.send(effect)
 }
 
-const store = createOfflineStore(
+const store = createStore(
   reducer,
   preloadedState,
-  middleware,
-+ customConfig  
+-  middleware
++  compose(middleware, offline(customConfig))
 );
 ```
 
@@ -325,7 +341,7 @@ const store = createOfflineStore(
 The reason for default config is defined as a separate import is, that it pulls in the [redux-persist](https://github.com/rt2zz/redux-persist) dependency and a limited, but non-negligible amount of library code. If you want to minimize your bundle size, you'll want to avoid importing any code you don't use, and bring in only the pieces you need:
 
 ```diff
-import { createOfflineStore } from 'redux-offline';
+import { offline } from 'redux-offline';
 import batch from 'redux-offline/lib/defaults/batch';
 import retry from 'redux-offline/lib/defaults/retry';
 import discard from 'redux-offline/lib/defaults/discard';
@@ -338,11 +354,12 @@ const myConfig = {
   persist: (store) => MyCustomPersistence.persist(store)
 };
 
-const store = createOfflineStore(
+const store = createStore(
   reducer,
   preloadedState,
-  middleware,
-+ myConfig  
+-  middleware
++  compose(middleware, offline(myConfig))
+ myConfig  
 );
 ```
 
@@ -375,7 +392,14 @@ const config = {
 };
 ```
 
-If you want to replace redux-persist entirely **(not recommended)**, you can override `config.persist`. The function receives the store instance as a first parameter, and is responsibe for setting any subscribers to listen for store changes to persist it.
+You can pass the callback for redux-persist as well. This function would be called when rehydration is complete. It's useful if you want to delay rendering until rehydration is complete. You can define it in `config.persistCallback`:
+```js
+const config = {
+  persistCallback: () => { /*...*/ }
+};
+```
+
+If you want to replace redux-persist entirely **(not recommended)**, you can override `config.persist`. The function receives the store instance as a first parameter, and is responsible for setting any subscribers to listen for store changes to persist it.
 ```js
 const config = {
   persist: (store) =>

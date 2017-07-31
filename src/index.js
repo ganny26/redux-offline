@@ -1,7 +1,7 @@
 // @flow
 /*global $Shape*/
 import type { Config } from './types';
-import { applyMiddleware, createStore, compose } from 'redux';
+import { applyMiddleware, compose } from 'redux';
 import { autoRehydrate } from 'redux-persist';
 import { createOfflineMiddleware } from './middleware';
 import { enhanceReducer } from './updater';
@@ -13,11 +13,10 @@ import { networkStatusChanged } from './actions';
 // eslint-disable-next-line no-unused-vars
 let persistor;
 
-export const createOfflineStore = (
+export const offline = (userConfig: $Shape<Config> = {}) => (createStore: any) => (
   reducer: any,
   preloadedState: any,
-  enhancer: any,
-  userConfig: $Shape<Config> = {}
+  enhancer: any = x => x
 ) => {
   console.log('user config', userConfig);
   const config = applyDefaults(userConfig);
@@ -40,7 +39,7 @@ export const createOfflineStore = (
 
   // launch store persistor
   if (config.persist) {
-    persistor = config.persist(store, config.persistOptions);
+    persistor = config.persist(store, config.persistOptions, config.persistCallback);
   }
 
   // launch network detector
