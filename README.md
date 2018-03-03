@@ -2,14 +2,14 @@
   <img alt="redux-offline" src="docs/logo.png" width="300"></img>
 </p>
 <p>
-  <a title='License' href="https://raw.githubusercontent.com/redux-offline-team/redux-offline/master/LICENSE" height="18">
+  <a title='License' href="https://raw.githubusercontent.com/redux-offline/redux-offline/master/LICENSE" height="18">
     <img src='https://img.shields.io/badge/license-MIT-blue.svg' />
   </a>
-  <a href="https://badge.fury.io/js/redux-offline">
-    <img src="https://badge.fury.io/js/redux-offline.svg" alt="npm version" height="18">
+  <a href="https://badge.fury.io/js/%40redux-offline%2Fredux-offline">
+    <img src="https://badge.fury.io/js/%40redux-offline%2Fredux-offline.svg" alt="npm version" height="18">
   </a>
-  <a href="https://travis-ci.org/redux-offline-team/redux-offline">
-    <img src="https://travis-ci.org/redux-offline-team/redux-offline.svg?branch=master" alt="travis" height="18">
+  <a href="https://travis-ci.org/redux-offline/redux-offline">
+    <img src="https://travis-ci.org/redux-offline/redux-offline.svg?branch=master" alt="travis" height="18">
   </a>
 </p>
 
@@ -191,7 +191,7 @@ const ordersReducer = (state, action) {
     case 'COMPLETE_ORDER':
       return {
         ...state,
-        submitting: {...state.submitting, [action.payload.orderId]: true
+        submitting: { ...state.submitting, [action.payload.orderId]: true }
       };
     case 'COMPLETE_ORDER_COMMIT':
       return {
@@ -318,7 +318,8 @@ export type Config = {
     enqueue: (outbox: Array<OfflineAction>, action: OfflineAction) => Array<OfflineAction>,
     dequeue: (outbox: Array<OfflineAction>, action: OfflineAction) => Array<OfflineAction>,
     peek: (outbox: Array<OfflineAction>) => OfflineAction
-  }
+  },
+  returnPromises: boolean
 };
 ```
 
@@ -533,6 +534,8 @@ const config = {
 #### Chain behavior off offline actions (EXPERIMENTAL & UNSTABLE)
 
 `store.dispatch()` returns a promise that you can use to chain behavior off offline actions, but be careful! A chief benefit of this library is that requests are tried across sessions, but promises do not last that long. So if you use this feature, know that your promise might not get resolved, even if the associated request is eventually delivered.
+
+> You must opt-in to this feature by setting `offlineConfig.returnPromises = true`.
 
 #### Synchronise my state while the app is not open
 
